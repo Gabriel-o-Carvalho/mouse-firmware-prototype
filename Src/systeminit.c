@@ -1,0 +1,41 @@
+#include <stdint.h>
+#include "system_stm32f1xx.h"
+#include "stm32f1xx.h"
+
+uint32_t SystemCoreClock = 72e6;
+
+void config_clock(void){
+	MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY, FLASH_ACR_LATENCY_1);
+
+	// HSE Config
+	SET_BIT(RCC->CR, RCC_CR_HSEON);
+	while(!READ_BIT(RCC->CR, RCC_CR_HSERDY));
+
+	// PLL Config
+	CLEAR_BIT(RCC->CFGR, RCC_CFGR_PLLXTPRE);
+	SET_BIT(RCC->CFGR, RCC_CFGR_PLLSRC);
+
+	MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLMULL, RCC_CFGR_PLLMULL9);
+	CLEAR_BIT(RCC->CFGR, RCC_CFGR_USBPRE);
+
+	SET_BIT(RCC->CR, RCC_CR_PLLON);
+	while(!READ_BIT(RCC->CR, RCC_CR_PLLRDY));
+
+	MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, RCC_CFGR_SW_PLL);
+
+	// AHB-Pre = /1, APB1-Pre = /2, APB2-Pre = /1
+	MODIFY_REG(RCC->CFGR,
+			   RCC_CFGR_HPRE | RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2,
+			   RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1);
+
+	while(READ_BIT(RCC->CFGR, RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+
+	CLEAR_BIT(RCC->CR, RCC_CR_HSION);
+
+}
+
+
+void SystemInit(void){
+	config_clock();
+}
+
