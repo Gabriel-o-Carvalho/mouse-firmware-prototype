@@ -1,7 +1,7 @@
 #include "usbd_framework.h"
 #include "usbd_driver.h"
 #include "usb_standards.h"
-#include "usb_device.h"
+
 #include "usb_descriptors.h"
 
 #include "Hid/usb_hid.h"
@@ -9,6 +9,22 @@
 static UsbDevice *usbd_handle;
 static uint8_t flag_hid = 0;
 static uint8_t data_in_zero = 0;
+
+static int8_t mouse_x = 0;
+static int8_t mouse_y = 0;
+static uint8_t mouse_buttons = 0;
+
+static void set_mousex(int8_t value){
+	mouse_x = value;
+}
+
+static void set_mousey(int8_t value){
+	mouse_y = value;
+}
+
+static void set_mousebuttons(uint8_t value){
+	mouse_buttons = value;
+}
 
 void initialize_usb(UsbDevice *usb_device){
 	usbd_handle = usb_device;
@@ -46,6 +62,11 @@ static void process_standard_device_request(){
 				case USB_DESCRIPTOR_TYPE_CONFIGURATION:
 					usbd_handle->ptr_in_buffer = &config_combination_descriptor;
 					usbd_handle->in_data_size = data_size;
+					usbd_handle->control_transfer_stage = USB_CONTROL_STAGE_DATA_IN;
+					break;
+				case USB_DESCRIPTOR_TYPE_DEVICE_QUALIFIER:
+					usbd_handle->ptr_in_buffer = 0;
+					usbd_handle->in_data_size = 0;
 					usbd_handle->control_transfer_stage = USB_CONTROL_STAGE_DATA_IN;
 					break;
 			}
@@ -161,11 +182,10 @@ static void usb_polled_handler(){
 
 static void write_hid_report(){
 	HidReport hid_report = {
-			.x = 5,
-			.y = 5,
-			.buttons = 0
+			.x = mouse_x,
+			.y = mouse_y,
+			.buttons = mouse_buttons
 	};
-
 	usb_driver.write_packet(0x01, &hid_report, sizeof(hid_report));
 }
 
@@ -194,6 +214,12 @@ static void err_transfer_received_handler(){
 	usbd_handle->control_transfer_stage = USB_CONTROL_STAGE_SETUP;
 }
 
+HidConfig hid_config = {
+	.set_mousex = &set_mousex,
+	.set_mousey = &set_mousey,
+	.set_buttons = &set_mousebuttons
+};
+
 UsbEvents usb_events = {
 	.on_usb_reset_received = &usb_reset_handler,
 	.on_setup_data_received = &setup_data_received_handler,
@@ -202,9 +228,3 @@ UsbEvents usb_events = {
 	.on_out_transfer_completed = &out_transfer_completed_handler,
 	.on_err_transfer_received = &err_transfer_received_handler
 };
-
-
-
-
-
-

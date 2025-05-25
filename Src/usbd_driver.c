@@ -109,7 +109,30 @@ static void write_packet(uint8_t endpoint_number, void *buffer, uint16_t data_si
 	uint16_t *bftable = (uint16_t *) USB_BFTABLE;
 	*(bftable+2+endpoint_number*8) = data_size;
 
+	uint32_t *epdata_buffer;
 	switch(endpoint_number){
+		case 0x00:
+			epdata_buffer = (uint32_t*) EPDATA->TX0_Buffer;
+			break;
+
+		case 0x01:
+			epdata_buffer = (uint32_t*) EPDATA->TX1_Buffer;
+			break;
+	}
+
+    uint16_t j = 0;
+    for(int i = 0 ; i < data_size; i++, buffer++){
+        if(i % 2){
+           *(epdata_buffer+j) &= ~(0xFF << 8);
+           *(epdata_buffer+j) |= (uint32_t) *((uint8_t*) buffer) << 8;
+           j++;
+        }else{
+           *(epdata_buffer+j) &= ~(0xFF);
+           *(epdata_buffer+j) |= (uint32_t) *((uint8_t*) buffer);
+        }
+	}
+
+	/*switch(endpoint_number){
 		case 0x00:
 			for(int i=0 ; i < (data_size/2); i++, buffer +=2){
 				EPDATA->TX0_Buffer[i] = (uint32_t) *((uint16_t *) buffer);
@@ -121,7 +144,7 @@ static void write_packet(uint8_t endpoint_number, void *buffer, uint16_t data_si
 				EPDATA->TX1_Buffer[i] = (uint32_t) *((uint16_t *) buffer);
 			}
 			break;
-	}
+	}*/
 
 	set_stat_tx(endpoint_number, 0b11);
 }
